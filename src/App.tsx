@@ -82,6 +82,7 @@ const emptyForm: CreateFormState = {
 };
 
 function App() {
+  const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
   const [activeView, setActiveView] = useState<ViewId>("dashboard");
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [jiraCache, setJiraCache] = useState<JiraCache>(emptyCache);
@@ -947,7 +948,7 @@ function App() {
             onClick={handleLogoClick}
             aria-label="JiraMove"
           >
-            <img className="brand-logo" src="/logo.png" alt="JiraMove" />
+            <img className="brand-logo" src={logoUrl} alt="JiraMove" />
           </button>
           <div className="brand-copy">
             <span className="eyebrow">개인용 JIRA 퀵 매니저</span>
