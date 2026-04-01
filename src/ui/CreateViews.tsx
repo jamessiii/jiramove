@@ -1026,6 +1026,24 @@ export function SettingsView({
               Atlassian API 토큰 발급 페이지 열기
             </a>
           </label>
+
+          <label className="wide-field">
+            <span>프록시 URL</span>
+            <input
+              placeholder="예: http://218.155.108.163:8787"
+              value={settings.proxyUrl}
+              onChange={(event) =>
+                setSettings((previous) => ({
+                  ...previous,
+                  proxyUrl: event.target.value,
+                }))
+              }
+            />
+            <p className="support-text">
+              GitHub Pages 배포본은 이 주소를 통해 Jira API를 우회 호출합니다.
+            </p>
+          </label>
+
         </div>
 
         <div className="button-row">

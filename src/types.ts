@@ -99,6 +99,7 @@ export type SettingsState = {
   domainPrefix: string;
   email: string;
   apiToken: string;
+  proxyUrl: string;
   recommendationCount: number;
   defaultView: ViewId;
   defaultGrouping: GroupMode;

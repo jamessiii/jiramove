@@ -112,8 +112,26 @@ function shouldUseDevProxy(): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
+function getExternalProxyUrl(settings: SettingsState): string | null {
+  const trimmed = settings.proxyUrl.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.replace(/\/+$/, "");
+}
+
 function buildRequestUrl(settings: SettingsState, path: string): string {
-  return shouldUseDevProxy() ? `/__jira_proxy__${path}` : `${buildBaseUrl(settings)}${path}`;
+  if (shouldUseDevProxy()) {
+    return `/__jira_proxy__${path}`;
+  }
+
+  const proxyUrl = getExternalProxyUrl(settings);
+  if (proxyUrl) {
+    return `${proxyUrl}${path}`;
+  }
+
+  return `${buildBaseUrl(settings)}${path}`;
 }
 
 function buildRequestHeaders(
@@ -132,7 +150,7 @@ function buildRequestHeaders(
     `Basic ${encodeBasicValue(`${settings.email}:${settings.apiToken}`)}`,
   );
 
-  if (shouldUseDevProxy()) {
+  if (shouldUseDevProxy() || getExternalProxyUrl(settings)) {
     headers.set("x-jira-base-url", buildBaseUrl(settings));
   }
 
@@ -1082,10 +1100,24 @@ async function jiraRequest<T>(
     throw new JiraRequestError("Jira 연결 정보를 먼저 저장해 주세요.", 400);
   }
 
-  const response = await fetch(buildRequestUrl(settings, path), {
-    ...init,
-    headers: buildRequestHeaders(settings, init),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(buildRequestUrl(settings, path), {
+      ...init,
+      headers: buildRequestHeaders(settings, init),
+    });
+  } catch (error) {
+    const proxyUrl = getExternalProxyUrl(settings);
+    const hint = proxyUrl
+      ? `프록시(${proxyUrl})에 연결할 수 없습니다. 프록시 서버가 실행 중인지 확인해 주세요.`
+      : "브라우저에서 Jira API를 직접 호출하면 CORS로 막힐 수 있습니다. 프록시 URL을 설정해 주세요.";
+
+    throw new JiraRequestError(
+      error instanceof Error && error.message ? `${hint} (${error.message})` : hint,
+      0,
+    );
+  }
 
   if (response.status === 204) {
     return undefined as T;
