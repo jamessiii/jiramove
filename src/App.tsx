@@ -45,7 +45,7 @@ const defaultSettings: SettingsState = {
   domainPrefix: "",
   email: "",
   apiToken: "",
-  proxyUrl: "http://218.155.108.163:8787",
+  proxyUrl: "",
   recommendationCount: 4,
   defaultView: "dashboard",
   defaultGrouping: "status",
