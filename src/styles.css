@@ -129,6 +129,17 @@ img {
   border-bottom: 1px solid var(--line);
 }
 
+.brand-logo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
 .brand-logo {
   width: 176px;
   max-width: 100%;
@@ -154,16 +165,6 @@ img {
 .brand-copy .eyebrow {
   justify-self: center;
   text-align: center;
-}
-
-.sidebar-status {
-  display: flex;
-  justify-content: flex-start;
-  padding: 0 8px 2px;
-}
-
-.sidebar-status .pill {
-  width: fit-content;
 }
 
 .brand-block h1,
@@ -262,6 +263,22 @@ img {
   background: var(--panel-soft);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+}
+
+.sidebar-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-pill {
+  min-height: 18px;
+  padding: 0 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .sidebar-timestamp {
@@ -522,6 +539,14 @@ textarea {
   color: #6d28d9;
   background: rgba(139, 92, 246, 0.14);
   border: 1px solid rgba(139, 92, 246, 0.22);
+}
+
+.pill.sidebar-pill {
+  min-height: 21px;
+  padding: 0 8px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .view-stage,

@@ -37,7 +37,7 @@ export type Ticket = {
   createdByMe: boolean;
   issueTypeName: string;
   developmentAssignees: string[];
-  isDevelopmentRequest: boolean;
+  developmentRequestStatus: string;
 };
 
 export type Project = {
@@ -102,6 +102,7 @@ export type SettingsState = {
   recommendationCount: number;
   defaultView: ViewId;
   defaultGrouping: GroupMode;
+  assignmentMenuUnlocked: boolean;
   favoriteProjects: FavoriteProject[];
   createTemplates: CreateTemplate[];
 };

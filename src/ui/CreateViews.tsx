@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { navigation } from "../navigation";
 import type {
   CreateFieldMetadata,
   CreateFormState,
@@ -856,6 +855,7 @@ export function EpicView({
 export function SettingsView({
   settings,
   setSettings,
+  navigationItems,
   projects,
   lastSyncedAt,
   syncProjects,
@@ -865,12 +865,15 @@ export function SettingsView({
   onSave,
   onTestConnection,
   onClearCache,
+  onRemoveAssignmentMenu,
   connectionState,
   configured,
+  assignmentMenuUnlocked,
   lastError,
 }: {
   settings: SettingsState;
   setSettings: Dispatch<SetStateAction<SettingsState>>;
+  navigationItems: Array<{ id: ViewId; label: string; kicker: string }>;
   projects: Project[];
   lastSyncedAt: string;
   syncProjects: string;
@@ -880,8 +883,10 @@ export function SettingsView({
   onSave: () => void;
   onTestConnection: () => void;
   onClearCache: () => void;
+  onRemoveAssignmentMenu: () => void;
   connectionState: "idle" | "testing" | "connected" | "error";
   configured: boolean;
+  assignmentMenuUnlocked: boolean;
   lastError: string | null;
 }) {
   const [favoriteProjectCode, setFavoriteProjectCode] = useState("");
@@ -1166,7 +1171,7 @@ export function SettingsView({
                 }))
               }
             >
-              {navigation.map((item) => (
+              {navigationItems.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
@@ -1191,6 +1196,13 @@ export function SettingsView({
             </select>
           </label>
         </div>
+        {assignmentMenuUnlocked ? (
+          <div className="button-row">
+            <button className="button tertiary" type="button" onClick={onRemoveAssignmentMenu}>
+              업무할당 메뉴 삭제
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );

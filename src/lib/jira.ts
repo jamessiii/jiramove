@@ -77,9 +77,9 @@ type CreateMetaFieldsResponse = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 7;
 const EXCLUDED_STATUS_KEYWORDS = ["이슈종료", "보류", "닫힘"];
-const DEVELOPMENT_ASSIGNEE_FIELD_ID = "customfield_10088";
+const DEVELOPMENT_ASSIGNEE_FIELD_ID = "customfield_10115";
 const DEVELOPMENT_REQUEST_FIELD_ID = "customfield_10091";
 const UNASSIGNED_LABEL = "미지정";
 
@@ -505,6 +505,7 @@ async function fetchAssignmentTickets(
 
       return issues
         .filter((issue) => !isExcludedWorkflowIssue(issue))
+        .filter((issue) => isAssignmentIssue(issue))
         .map((issue) => mapIssue(issue, settings, currentUser, fieldCatalog, epicsByKey));
     }),
   );
@@ -681,7 +682,7 @@ function mapIssue(
     createdByMe: fields.creator?.accountId === currentUser.accountId,
     issueTypeName: fields.issuetype?.name ?? "이슈",
     developmentAssignees,
-    isDevelopmentRequest: isDevelopmentRequestStatus(fields[DEVELOPMENT_REQUEST_FIELD_ID]),
+    developmentRequestStatus: resolveDevelopmentRequestStatus(fields[DEVELOPMENT_REQUEST_FIELD_ID]),
   };
 }
 
@@ -840,22 +841,30 @@ function resolveDevelopmentAssignees(
   return dedupeLabels(extractDisplayLabels(fields[fieldId]));
 }
 
-function isDevelopmentRequestStatus(value: unknown): boolean {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  if (typeof value === "number") {
-    return value !== 0;
+function resolveDevelopmentRequestStatus(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
   }
 
   const labels = dedupeLabels(extractDisplayLabels(value));
   if (labels.length > 0) {
-    return labels.some((label) => normalizeFieldName(label).includes("개발요청"));
+    return labels[0];
   }
 
-  const normalized = normalizeFieldName(value);
-  return normalized === "true" || normalized === "y" || normalized === "yes" || normalized === "1";
+  return "";
+}
+
+function isIncompleteDevelopmentRequestStatus(value: unknown): boolean {
+  const status = resolveDevelopmentRequestStatus(value);
+  return normalizeFieldName(status) !== "완료";
+}
+
+function isAssignmentIssue(issue: RawIssue): boolean {
+  const workflowStatus = normalizeFieldName(issue.fields?.status?.name);
+  return (
+    workflowStatus === "개발요청" &&
+    isIncompleteDevelopmentRequestStatus(issue.fields?.[DEVELOPMENT_REQUEST_FIELD_ID])
+  );
 }
 
 function buildActiveIssueJql(whereClause: string, orderByClause: string): string {

@@ -33,13 +33,12 @@ import {
   AssignmentView,
   DashboardView,
   RecentView,
-  TicketsView,
 } from "./ui/TicketViews";
 
 const SETTINGS_KEY = "settings";
 const CACHE_KEY = "jira-cache";
 const VIEW_KEY = "active-view";
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 7;
 const ACTIVE_VIEWS: ViewId[] = ["dashboard", "assignment", "create", "recent", "settings"];
 
 const defaultSettings: SettingsState = {
@@ -49,6 +48,7 @@ const defaultSettings: SettingsState = {
   recommendationCount: 4,
   defaultView: "dashboard",
   defaultGrouping: "status",
+  assignmentMenuUnlocked: false,
   favoriteProjects: [],
   createTemplates: [],
 };
@@ -104,8 +104,13 @@ function App() {
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyForm);
   const [isLoaded, setIsLoaded] = useState(false);
   const [didBootstrapSync, setDidBootstrapSync] = useState(false);
+  const [, setLogoClickTimes] = useState<number[]>([]);
+  const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState("");
+  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   const configured = hasSavedCredentials(settings);
+  const assignmentMenuUnlocked = settings.assignmentMenuUnlocked;
   const projects = jiraCache.projects;
   const users = jiraCache.users;
   const epics = jiraCache.epics;
@@ -164,6 +169,13 @@ function App() {
       };
     });
   }, [epics, jiraCache.issueTypesByProject, projects, settings.createTemplates, users]);
+  const visibleNavigation = useMemo(
+    () =>
+      navigation.filter(
+        (item) => item.id !== "assignment" || assignmentMenuUnlocked,
+      ),
+    [assignmentMenuUnlocked],
+  );
   usePersistentState({
     isLoaded,
     settings,
@@ -188,6 +200,33 @@ function App() {
     const timer = window.setTimeout(() => setToast(null), 2800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!assignmentMenuUnlocked && activeView === "assignment") {
+      setActiveView("dashboard");
+    }
+  }, [activeView, assignmentMenuUnlocked]);
+
+  useEffect(() => {
+    if (!assignmentMenuUnlocked && settings.defaultView === "assignment") {
+      setSettings((previous) =>
+        previous.defaultView === "assignment"
+          ? {
+              ...previous,
+              defaultView: "dashboard",
+            }
+          : previous,
+      );
+    }
+  }, [assignmentMenuUnlocked, settings.defaultView]);
+
+  useEffect(() => {
+    if (!unlockModalOpen) {
+      setUnlockPassword("");
+      setUnlockError(null);
+      setLogoClickTimes([]);
+    }
+  }, [unlockModalOpen]);
 
   useEffect(() => {
     if (!isLoaded || didBootstrapSync) {
@@ -727,6 +766,50 @@ function App() {
     showToast(`${ticket.key} 키를 클립보드에 복사했습니다.`);
   }
 
+  function handleLogoClick() {
+    if (assignmentMenuUnlocked) {
+      return;
+    }
+
+    const now = Date.now();
+    setLogoClickTimes((previous) => {
+      const next = [...previous.filter((timestamp) => now - timestamp <= 3000), now];
+      if (next.length >= 5) {
+        setUnlockModalOpen(true);
+        return [];
+      }
+
+      return next;
+    });
+  }
+
+  function handleUnlockAssignmentMenu() {
+    if (unlockPassword.trim() !== "ajslanqm") {
+      setUnlockError("비밀번호가 올바르지 않습니다.");
+      return;
+    }
+
+    setSettings((previous) => ({
+      ...previous,
+      assignmentMenuUnlocked: true,
+    }));
+    setUnlockModalOpen(false);
+    showToast("업무할당 메뉴를 해금했습니다.");
+  }
+
+  function handleRemoveAssignmentMenu() {
+    setSettings((previous) => ({
+      ...previous,
+      assignmentMenuUnlocked: false,
+      defaultView:
+        previous.defaultView === "assignment" ? "dashboard" : previous.defaultView,
+    }));
+    if (activeView === "assignment") {
+      setActiveView("dashboard");
+    }
+    showToast("업무할당 메뉴를 숨겼습니다.");
+  }
+
   function openExternal(url: string) {
     if (!url || url === "#") {
       showToast("이 항목에는 Jira 링크가 없습니다.");
@@ -830,6 +913,7 @@ function App() {
           <SettingsView
             settings={settings}
             setSettings={setSettings}
+            navigationItems={visibleNavigation}
             projects={projects}
             lastSyncedAt={lastSyncedAtLabel}
             syncProjects={`${projects.length}개 프로젝트`}
@@ -839,8 +923,10 @@ function App() {
             onSave={handleSaveSettings}
             onTestConnection={() => void handleTestConnection()}
             onClearCache={() => void handleClearCache()}
+            onRemoveAssignmentMenu={handleRemoveAssignmentMenu}
             connectionState={connectionState}
             configured={configured}
+            assignmentMenuUnlocked={assignmentMenuUnlocked}
             lastError={lastError}
           />
         );
@@ -855,27 +941,21 @@ function App() {
       <div className="ambient ambient-right" aria-hidden="true" />
       <aside className="sidebar glass-panel">
         <div className="brand-block">
-          <img className="brand-logo" src="/logo.png" alt="JiraMove" />
+          <button
+            className="brand-logo-button"
+            type="button"
+            onClick={handleLogoClick}
+            aria-label="JiraMove"
+          >
+            <img className="brand-logo" src="/logo.png" alt="JiraMove" />
+          </button>
           <div className="brand-copy">
             <span className="eyebrow">개인용 JIRA 퀵 매니저</span>
           </div>
         </div>
 
-        <div className="sidebar-status">
-          <span
-            className={`pill ${connectionState === "connected" ? "success" : connectionState === "error" ? "danger" : "neutral"}`}
-          >
-            {connectionState === "connected"
-              ? "Jira 연결됨"
-              : connectionState === "testing"
-                ? "연결 확인 중"
-                : connectionState === "error"
-                  ? "연결 오류"
-                  : "연결 필요"}
-          </span>
-        </div>
         <nav className="sidebar-nav" aria-label="주요 메뉴">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -889,7 +969,20 @@ function App() {
         </nav>
 
         <div className="sidebar-card">
-          <span className="eyebrow">동기화 현황</span>
+          <div className="sidebar-card-head">
+            <span className="eyebrow">동기화 현황</span>
+            <span
+              className={`pill sidebar-pill ${connectionState === "connected" ? "success" : connectionState === "error" ? "danger" : "neutral"}`}
+            >
+              {connectionState === "connected"
+                ? "Jira 연결됨"
+                : connectionState === "testing"
+                  ? "연결 확인 중"
+                  : connectionState === "error"
+                    ? "연결 오류"
+                    : "연결 필요"}
+            </span>
+          </div>
           <strong className="sidebar-timestamp">{lastSyncedAtLabel}</strong>
           <div className="sync-row">
             <span>프로젝트 {projects.length}개</span>
@@ -913,6 +1006,57 @@ function App() {
       </main>
 
       {toast ? <div className="toast">{toast}</div> : null}
+      {unlockModalOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setUnlockModalOpen(false)}>
+          <section
+            className="modal-card glass-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assignment-unlock-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <h3 id="assignment-unlock-title">업무할당 메뉴 해금</h3>
+              <button
+                className="button tertiary"
+                type="button"
+                onClick={() => setUnlockModalOpen(false)}
+              >
+                닫기
+              </button>
+            </div>
+            <div className="modal-body">
+              <label className="modal-field">
+                <span>비밀번호</span>
+                <input
+                  type="password"
+                  value={unlockPassword}
+                  autoFocus
+                  placeholder="비밀번호 입력"
+                  onChange={(event) => {
+                    setUnlockPassword(event.target.value);
+                    if (unlockError) {
+                      setUnlockError(null);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleUnlockAssignmentMenu();
+                    }
+                  }}
+                />
+              </label>
+              {unlockError ? <p className="error-text">{unlockError}</p> : null}
+              <div className="button-row">
+                <button className="button primary" type="button" onClick={handleUnlockAssignmentMenu}>
+                  해금
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

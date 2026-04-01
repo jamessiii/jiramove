@@ -68,7 +68,7 @@ export function DashboardView({
       case "mine":
         return {
           eyebrow: "내 작업",
-          title: "내 담당 티켓",
+          title: "내 담당 이슈",
           countLabel: `${assignedTickets.length}건`,
           tickets: assignedTickets,
           recentTickets: [] as RecentTicket[],
@@ -76,7 +76,7 @@ export function DashboardView({
       case "mentions":
         return {
           eyebrow: "언급 현황",
-          title: "언급된 티켓",
+          title: "언급된 이슈",
           countLabel: `${mentionTickets.length}건`,
           tickets: mentionTickets,
           recentTickets: [] as RecentTicket[],
@@ -84,7 +84,7 @@ export function DashboardView({
       case "review":
         return {
           eyebrow: "리뷰",
-          title: "리뷰가 필요한 티켓",
+          title: "리뷰가 필요한 이슈",
           countLabel: `${reviewTickets.length}건`,
           tickets: reviewTickets,
           recentTickets: [] as RecentTicket[],
@@ -101,7 +101,7 @@ export function DashboardView({
       default:
         return {
           eyebrow: "전체",
-          title: "전체 티켓",
+          title: "전체 이슈",
           countLabel: `${allTickets.length}건`,
           tickets: allTickets,
           recentTickets: [] as RecentTicket[],
@@ -125,7 +125,7 @@ export function DashboardView({
               <span className={`pill ${card.tone}`}>{card.label}</span>
               <strong>{card.value}</strong>
               <span className="dashboard-summary-caption">
-                {card.id === "recent" ? "최근 생성 이슈" : "활성 티켓"}
+                {card.id === "recent" ? "최근 생성 이슈" : "동기화된 이슈"}
               </span>
             </button>
           ))}
@@ -160,7 +160,7 @@ export function DashboardView({
             ) : (
               <EmptyState
                 title="최근 생성 이슈가 없습니다"
-                description="이슈를 하나 생성하면 이 영역에서 바로 다시 불러올 수 있습니다."
+                description="이슈를 하나 생성하면 여기에서 바로 다시 확인할 수 있습니다."
               />
             )
           ) : selectedView.tickets.length > 0 ? (
@@ -169,7 +169,7 @@ export function DashboardView({
             ))
           ) : (
             <EmptyState
-              title="표시할 티켓이 없습니다"
+              title="표시할 이슈가 없습니다"
               description="동기화를 다시 실행하거나 다른 카드를 선택해 보세요."
             />
           )}
@@ -187,7 +187,6 @@ export function AssignmentView({
   onOpenIssue: (ticket: Ticket) => void;
 }) {
   const [selectedDevelopers, setSelectedDevelopers] = useState<string[]>([]);
-  const [onlyDevelopmentRequest, setOnlyDevelopmentRequest] = useState(false);
 
   const developerOptions = useMemo(() => {
     const labels = tickets.flatMap((ticket) =>
@@ -209,15 +208,13 @@ export function AssignmentView({
     return tickets.filter((ticket) => {
       const developers =
         ticket.developmentAssignees.length > 0 ? ticket.developmentAssignees : ["미지정"];
-      const matchesDeveloper =
-        selectedDevelopers.length === 0 ||
-        developers.some((developer) => selectedDevelopers.includes(developer));
-      const matchesDevelopmentRequest =
-        !onlyDevelopmentRequest || ticket.isDevelopmentRequest;
 
-      return matchesDeveloper && matchesDevelopmentRequest;
+      return (
+        selectedDevelopers.length === 0 ||
+        developers.some((developer) => selectedDevelopers.includes(developer))
+      );
     });
-  }, [onlyDevelopmentRequest, selectedDevelopers, tickets]);
+  }, [selectedDevelopers, tickets]);
 
   function toggleDeveloper(developer: string) {
     setSelectedDevelopers((previous) =>
@@ -236,14 +233,6 @@ export function AssignmentView({
             <h3>개발 담당자 기준 보기</h3>
           </div>
           <div className="assignment-filter-meta">
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={onlyDevelopmentRequest}
-                onChange={(event) => setOnlyDevelopmentRequest(event.target.checked)}
-              />
-              <span>개발 요청만</span>
-            </label>
             <span className="mini-note">{filteredTickets.length}개 이슈</span>
           </div>
         </div>
@@ -275,9 +264,7 @@ export function AssignmentView({
             <span className="eyebrow">결과</span>
             <h3>{selectedDevelopers.length > 0 ? "선택한 담당자 이슈" : "전체 업무 이슈"}</h3>
           </div>
-          <span className="mini-note">
-            {onlyDevelopmentRequest ? "개발 요청 상태만 표시" : "활성 이슈 전체 표시"}
-          </span>
+          <span className="mini-note">상태는 개발 요청, 요청 필드는 완료 제외</span>
         </div>
 
         <div className="dashboard-ticket-grid">
@@ -292,7 +279,7 @@ export function AssignmentView({
           ) : (
             <EmptyState
               title="조건에 맞는 이슈가 없습니다"
-              description="개발 담당자 선택이나 개발 요청 토글을 조정해 보세요."
+              description="개발 담당자 선택을 조정하거나 다시 동기화해 보세요."
             />
           )}
         </div>
@@ -557,7 +544,7 @@ export function RecentView({
         ) : (
           <EmptyState
             title="최근 생성 기록이 없습니다"
-            description="빠른 생성에서 이슈를 만들면 이곳에 기록됩니다."
+            description="빠른 생성에서 이슈를 만들면 자동으로 기록됩니다."
           />
         )}
       </div>
@@ -626,9 +613,7 @@ function AssignmentTicketCard({
     <article className="ticket-card">
       <div className="ticket-head">
         <span className="pill info">{ticket.key}</span>
-        <span className={`pill ${ticket.isDevelopmentRequest ? "warning" : "neutral"}`}>
-          {ticket.isDevelopmentRequest ? "개발 요청" : "일반"}
-        </span>
+        <span className="pill warning">{ticket.developmentRequestStatus || "진행 중"}</span>
       </div>
       <strong>{ticket.summary}</strong>
       <div className="ticket-meta">
